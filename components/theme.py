@@ -285,6 +285,22 @@ def inject_css(dark_mode: bool = False) -> None:
         /* Hide default Streamlit chrome that clashes with the custom shell */
         #MainMenu {{visibility: hidden;}}
         footer {{visibility: hidden;}}
+        /* PHASE (native header strip fix, approved): toolbarMode="minimal" in
+           .streamlit/config.toml already suppresses the native toolbar's
+           contents (hamburger menu, Deploy button, etc.) — this rule
+           additionally collapses the thin header BAR ELEMENT ITSELF, which
+           Streamlit still reserves even in minimal mode, along with the
+           blank vertical space it leaves. Scoped to exactly one selector,
+           `header[data-testid="stHeader"]` — Streamlit's own native header,
+           not any Sahay-authored element — so it cannot affect
+           components/sidebar.py's drawer, components/topbar.py's page
+           header, or any page content. This does NOT and cannot remove any
+           chrome a hosting platform (e.g. Streamlit Community Cloud) renders
+           outside the application's own DOM. */
+        header[data-testid="stHeader"] {{
+            height: 0rem;
+            visibility: hidden;
+        }}
 
         /* ---- Responsive adjustments ----
            Streamlit's own layout already stacks st.columns() vertically
