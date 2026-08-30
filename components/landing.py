@@ -38,10 +38,39 @@ Phase 3 instruction not to add functionality that doesn't already exist.
 
 from __future__ import annotations
 
+import base64
+
 import streamlit as st
 
 from components.theme import sahay_icon_html, COLORS
 from config import GOOGLE_OAUTH_CONFIG, SUPABASE_USER_CONFIG
+
+# ---------------------------------------------------------------------------
+# Google "G" icon (approved, Change 4) — standard, publicly-documented
+# four-color Google logomark, embedded as a data-URI background-image via
+# CSS (see `.sahay-google-icon-var` rule below), exactly the same
+# base64-data-URI technique components/theme.py's own sahay_icon_html()
+# already uses for the Sahay wordmark. Rendered as a background-image
+# (not inline <svg>), so it cannot be recolored by any CSS/dark-mode rule
+# and stays visible in both Sahay Light and Dark Mode.
+# ---------------------------------------------------------------------------
+_GOOGLE_ICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="18" height="18">
+<path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+<path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+<path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.348 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/>
+<path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+</svg>"""
+
+
+def _google_icon_css() -> str:
+    """A tiny, separate CSS injection defining the one `--sahay-google-icon`
+    variable `.sahay-google-icon` rules (in _LANDING_CSS) consume. Kept
+    separate from the big static _LANDING_CSS constant so that constant
+    doesn't need converting to an f-string (which would require escaping
+    every one of its many literal `{`/`}` CSS braces) just for this one
+    dynamic value."""
+    b64 = base64.b64encode(_GOOGLE_ICON_SVG.encode("utf-8")).decode("utf-8")
+    return f'<style>:root {{ --sahay-google-icon: url("data:image/svg+xml;base64,{b64}"); }}</style>'
 
 FEATURES = [
     ("💬", "Talk it through", "A calm, judgment-free space to reflect on how your day or week is going."),
@@ -80,16 +109,47 @@ _LANDING_CSS = """
 }
 .sahay-landing-topnav-spacer { height: 60px; }
 
-/* ---------- Hero ---------- */
-.sahay-landing-hero {
+/* ---------- Admin Panel link (approved) ---------- */
+.sahay-admin-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: var(--sahay-gradient);
+    color: #FFFFFF !important;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none !important;
+    box-shadow: 0 4px 14px rgba(166, 25, 60, 0.28);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    white-space: nowrap;
+}
+.sahay-admin-link:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(166, 25, 60, 0.36);
+}
+
+/* ---------- Hero (fixed container — see _hero()) ----------
+   Previously this background/radius/shadow was applied to a
+   `st.markdown('<div>...')`/`st.markdown('</div>')` pair that Streamlit
+   renders as two SEPARATE, unnested blocks — leaving an empty styled
+   div (the "blank rectangle") and the real content unstyled beneath it.
+   Fixed by moving these rules onto the auto-generated class Streamlit
+   gives a `st.container(key="sahay_landing_hero")` — a real DOM
+   ancestor of everything rendered inside that `with` block, so the
+   background now actually wraps the headline/subtitle/accent-card. */
+div[class*="st-key-sahay_landing_hero"] {
+    position: relative;
     border-radius: var(--sahay-radius);
     padding: 2.4rem 2.2rem;
     background:
-        radial-gradient(120% 160% at 0% 0%, rgba(47,93,138,0.16), transparent 60%),
-        radial-gradient(120% 160% at 100% 0%, rgba(63,175,160,0.14), transparent 55%);
+        radial-gradient(120% 160% at 0% 0%, rgba(166,25,60,0.14), transparent 60%),
+        radial-gradient(120% 160% at 100% 0%, rgba(217,119,87,0.12), transparent 55%);
     border: 1px solid var(--sahay-border);
     box-shadow: var(--sahay-shadow);
     margin-bottom: 1.6rem;
+    overflow: hidden;
 }
 .sahay-landing-hero h1 {
     font-family: 'Space Grotesk', sans-serif;
@@ -102,6 +162,90 @@ _LANDING_CSS = """
     line-height: 1.65;
     max-width: 520px;
     margin-top: 6px;
+}
+
+/* ---------- Floating wellness glyphs (approved, Change 5) ----------
+   Decorative only — position:absolute + pointer-events:none so they
+   never intercept clicks or sit above interactive content (z-index: 0,
+   behind the headline/columns which render afterward in normal flow).
+   Animation is a slow, small vertical drift; disabled entirely for
+   anyone with prefers-reduced-motion set. */
+.sahay-hero-glyph {
+    position: absolute;
+    z-index: 0;
+    opacity: 0.16;
+    font-size: 28px;
+    pointer-events: none;
+    animation: sahay-float 7s ease-in-out infinite;
+}
+.sahay-hero-glyph-1 { top: 8%;  left: 4%;  animation-delay: 0s; }
+.sahay-hero-glyph-2 { top: 65%; left: 8%;  font-size: 22px; animation-delay: 1.2s; }
+.sahay-hero-glyph-3 { top: 15%; left: 92%; font-size: 24px; animation-delay: 0.6s; }
+.sahay-hero-glyph-4 { top: 55%; left: 95%; animation-delay: 2s; }
+.sahay-hero-glyph-5 { top: 85%; left: 45%; font-size: 20px; animation-delay: 1.6s; }
+@keyframes sahay-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sahay-hero-glyph { animation: none; }
+}
+
+/* ---------- "Check In -> Reflect -> Relax -> Get Support" strip ---------- */
+.sahay-hero-journey {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 1.6rem;
+    padding-top: 1.1rem;
+    border-top: 1px solid var(--sahay-border);
+    font-size: 12.5px;
+}
+.sahay-hero-journey-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--sahay-muted, inherit);
+    opacity: 0.85;
+}
+.sahay-hero-journey-arrow {
+    opacity: 0.45;
+    margin: 0 2px;
+}
+@media (max-width: 768px) {
+    .sahay-hero-journey { font-size: 11.5px; gap: 4px; }
+    .sahay-hero-glyph { display: none; }
+}
+
+/* ---------- Google button icon (approved, Change 4) ----------
+   Targets the Streamlit-auto-generated `st-key-landing_google*` class
+   shared by all three Google button/link variants (normal, configured
+   link, disabled-error) — a substring match, so one rule covers all
+   three without touching their Python call sites' logic. The emoji
+   prefix was removed from each label; this ::before supplies the
+   multicolor "G" as a background image instead, immune to any text/
+   icon-color CSS since it's a background-image, not a glyph. */
+div[class*="st-key-landing_google"] button,
+div[class*="st-key-landing_google"] a {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+div[class*="st-key-landing_google"] button::before,
+div[class*="st-key-landing_google"] a::before {
+    content: "";
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    background-image: var(--sahay-google-icon);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    flex-shrink: 0;
 }
 
 /* ---------- Section titles ---------- */
@@ -170,8 +314,16 @@ div[data-testid="column"]:has(.sahay-landing-feature) [data-testid="stMarkdownCo
    sidebar below ~640px — these rules only tighten spacing/type on top of
    that, same pattern as components/theme.py's own responsive block. */
 @media (max-width: 768px) {
-    .sahay-landing-topnav { padding: 0.7rem 1.1rem; }
-    .sahay-landing-hero { padding: 1.6rem 1.3rem; }
+    .sahay-landing-topnav {
+        padding: 0.7rem 1.1rem;
+        flex-wrap: wrap;
+        row-gap: 8px;
+    }
+    .sahay-admin-link {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    div[class*="st-key-sahay_landing_hero"] { padding: 1.6rem 1.3rem; }
     .sahay-landing-hero h1 { font-size: 1.6rem; }
     .sahay-landing-hero-sub { font-size: 14.5px; }
 }
@@ -181,6 +333,7 @@ div[data-testid="column"]:has(.sahay-landing-feature) [data-testid="stMarkdownCo
 
 def render_landing_page() -> None:
     st.markdown(_LANDING_CSS, unsafe_allow_html=True)
+    st.markdown(_google_icon_css(), unsafe_allow_html=True)
     _topnav()
     _auth_error_banner()
     _hero()
@@ -198,11 +351,16 @@ def _topnav() -> None:
     """Fixed top bar carrying the Sahay wordmark + BETA badge that used to
     sit inline at the top of the hero column (Phase 2 and earlier) —
     repositioned here, not removed, so the hero itself can lead with the
-    headline. No links/buttons live inside the raw HTML bar itself
-    (Streamlit can't attach a click handler to unsafe_allow_html markup);
-    it is purely a fixed visual anchor, same approach
-    components/chatbot_launcher.py's `.sahay-launcher` pill already uses
-    for its own decorative fixed element.
+    headline.
+
+    PHASE (Admin Panel entry point, approved): a plain `<a href="?admin=1">`
+    anchor was added on the right side of this same bar. This is a real
+    browser link, not a Streamlit widget — clicking it navigates to the
+    exact same `?admin=1` URL `streamlit_app.py`'s existing admin gate
+    already checks (`st.query_params.get("admin")`, unchanged). No new
+    session-state, no new widget key, no change to admin_auth.py or the
+    gate itself — this is only a visible entry point to what was already
+    reachable, just previously unlinked from the landing page.
     """
     st.markdown(
         f"""
@@ -213,6 +371,9 @@ def _topnav() -> None:
                 <span style="background:{COLORS['soft_teal']}22;color:{COLORS['soft_teal']};
                     padding:2px 10px;border-radius:999px;font-size:11px;font-weight:600;">BETA</span>
             </div>
+            <a href="?admin=1" class="sahay-admin-link" target="_self">
+                🛡️ Admin Panel
+            </a>
         </div>
         <div class="sahay-landing-topnav-spacer"></div>
         """,
@@ -227,35 +388,85 @@ def _auth_error_banner() -> None:
 
 
 def _hero() -> None:
-    st.markdown('<div class="sahay-landing-hero">', unsafe_allow_html=True)
-    left, right = st.columns([3, 2])
-    with left:
-        st.markdown(
-            "<h1>Your AI Companion<br>for Student Wellbeing.</h1>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f"<p class='sahay-landing-hero-sub' style='color:{COLORS['muted_dark']};'>"
-            "Reflect on how you're feeling, manage everyday student stress, explore "
-            "wellness activities, and find appropriate support when you need it.</p>",
-            unsafe_allow_html=True,
-        )
-        st.caption("Secure sign-in via Supabase Auth · No judgment · Your data stays yours")
+    """PHASE (hero layout fix + wellness visual, approved):
 
-    with right:
+    Previously this function opened `<div class="sahay-landing-hero">`
+    via one `st.markdown()` call, rendered the actual content via
+    `st.columns()`, then closed `</div>` via a SECOND, separate
+    `st.markdown()` call. Streamlit renders each `st.markdown()` as its
+    own isolated DOM block — it does not nest widgets rendered by other
+    calls inside a tag opened in an earlier one. The browser therefore
+    auto-closed the first call's unclosed div immediately, producing an
+    empty div carrying the hero's gradient/shadow/radius styling with no
+    content inside it (the reported "blank rectangle"), while the real
+    headline/subtitle/accent-card rendered as an unstyled sibling block
+    beneath it.
+
+    Fixed by using `st.container(key="sahay_landing_hero")` — a real
+    Streamlit layout primitive whose auto-generated `st-key-...` class
+    (targeted in _LANDING_CSS) is a genuine DOM ancestor of everything
+    rendered inside the `with` block below, so the hero background now
+    actually wraps its content. This also gave a safe place to add the
+    approved decorative floating glyphs and the "Check In -> Reflect ->
+    Relax -> Get Support" strip — both pure CSS/HTML, no new
+    functionality, no backend calls, no session-state.
+    """
+    with st.container(key="sahay_landing_hero"):
+        # Decorative only — pointer-events:none in CSS, so these never
+        # intercept clicks on the real content rendered below them.
         st.markdown(
-            f"""
-            <div class="sahay-accent-card" style="height:100%;display:flex;
-                 flex-direction:column;justify-content:center;text-align:center;padding:40px 24px;">
-                {sahay_icon_html(52)}
-                <p style="font-size:19px;font-weight:700;margin:14px 0 4px 0;">Meet Sahay</p>
-                <p class="sahay-card-caption">A calm, supportive AI wellness companion —
-                not a therapist, doctor, or diagnosis tool.</p>
+            """
+            <span class="sahay-hero-glyph sahay-hero-glyph-1">💬</span>
+            <span class="sahay-hero-glyph sahay-hero-glyph-2">🌱</span>
+            <span class="sahay-hero-glyph sahay-hero-glyph-3">❤️</span>
+            <span class="sahay-hero-glyph sahay-hero-glyph-4">🧘</span>
+            <span class="sahay-hero-glyph sahay-hero-glyph-5">☀️</span>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        left, right = st.columns([3, 2])
+        with left:
+            st.markdown(
+                "<h1>Your AI Companion<br>for Student Wellbeing.</h1>",
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f"<p class='sahay-landing-hero-sub' style='color:{COLORS['muted_dark']};'>"
+                "Reflect on how you're feeling, manage everyday student stress, explore "
+                "wellness activities, and find appropriate support when you need it.</p>",
+                unsafe_allow_html=True,
+            )
+            st.caption("Secure sign-in via Supabase Auth · No judgment · Your data stays yours")
+
+        with right:
+            st.markdown(
+                f"""
+                <div class="sahay-accent-card" style="height:100%;display:flex;
+                     flex-direction:column;justify-content:center;text-align:center;padding:40px 24px;">
+                    {sahay_icon_html(52)}
+                    <p style="font-size:19px;font-weight:700;margin:14px 0 4px 0;">Meet Sahay</p>
+                    <p class="sahay-card-caption">A calm, supportive AI wellness companion —
+                    not a therapist, doctor, or diagnosis tool.</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+        st.markdown(
+            """
+            <div class="sahay-hero-journey">
+                <span class="sahay-hero-journey-step">🙂 Check In</span>
+                <span class="sahay-hero-journey-arrow">→</span>
+                <span class="sahay-hero-journey-step">💬 Reflect</span>
+                <span class="sahay-hero-journey-arrow">→</span>
+                <span class="sahay-hero-journey-step">🧘 Relax</span>
+                <span class="sahay-hero-journey-arrow">→</span>
+                <span class="sahay-hero-journey-step">🤝 Get Support</span>
             </div>
             """,
             unsafe_allow_html=True,
         )
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _auth_forms() -> None:
@@ -283,18 +494,31 @@ def _auth_forms() -> None:
 
 
 def _google_button() -> None:
+    """PHASE (Google icon, approved): the 🔵 emoji prefix was removed from
+    all three label strings below; a proper multicolor Google "G" is now
+    supplied by CSS (`.sahay-google-icon` / `--sahay-google-icon`, see
+    _LANDING_CSS and _google_icon_css()) via a `::before` background-image
+    on the button/link itself. `st.link_button` did not previously take a
+    `key=` — one was added (`landing_google_link_btn`) purely so CSS can
+    scope the icon to this specific link and not
+    pages/government_services.py's own unrelated `st.link_button` calls.
+    A link_button's key has no session-state/behavioral effect (it only
+    navigates), so this does not change OAuth logic, add app state, or
+    alter any existing widget's behavior. Every backend call below
+    (`auth.get_google_sign_in_url()`, the `except auth.AuthError` handling)
+    is byte-identical to before."""
     if not (SUPABASE_USER_CONFIG.is_configured and GOOGLE_OAUTH_CONFIG.is_configured):
-        if st.button("🔵  Continue with Google", key="landing_google_btn", use_container_width=True):
+        if st.button("Continue with Google", key="landing_google_btn", use_container_width=True):
             st.info("Google Sign-In will be available once Supabase and Google OAuth are configured. See PHASE2_IMPLEMENTATION_REPORT.md for setup steps.")
         return
 
     from backend import auth
     try:
         url = auth.get_google_sign_in_url()
-        st.link_button("🔵  Continue with Google", url, use_container_width=True)
+        st.link_button("Continue with Google", url, key="landing_google_link_btn", use_container_width=True)
         st.caption("Google Sign-In is configured but has not been live-tested in this environment (no network access). Please verify it end-to-end yourself.")
     except auth.AuthError as exc:
-        st.button("🔵  Continue with Google", key="landing_google_btn_err", use_container_width=True, disabled=True)
+        st.button("Continue with Google", key="landing_google_btn_err", use_container_width=True, disabled=True)
         st.caption(str(exc))
 
 
