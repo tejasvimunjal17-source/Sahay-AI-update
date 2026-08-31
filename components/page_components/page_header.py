@@ -12,6 +12,17 @@ Visual hierarchy is adapted from LearnMate's `frontend/components.py`
 LearnMate copy, no LearnMate data. Content (title/description) always
 comes from the calling page's own existing text; this component never
 invents copy.
+
+PHASE (HTML-rendering bug fix, approved): `_render_title_block()`'s
+`st.markdown()` call was rebuilt as one continuous string instead of a
+multi-line indented f-string — the multi-line version could leave a
+blank line where an unset `icon`/`badge` substituted an empty string,
+which broke Streamlit's/CommonMark's raw-HTML-block detection and made
+the tags render as visible literal text on every page that didn't pass
+`icon`/`badge` (i.e. most pages). See `_render_title_block()`'s own
+docstring for the full mechanism. Same HTML tags, classes, styles, and
+content as before — this is a string-construction fix only, no visual
+or behavioral change.
 """
 
 from __future__ import annotations
@@ -70,6 +81,23 @@ def _render_title_block(
     badge: str | None,
     muted: str,
 ) -> None:
+    """Builds the exact same HTML as before (same tags, classes, styles,
+    content) but as ONE continuous string with no embedded newlines —
+    fixes the rendering bug where an empty `icon_html`/`badge_html`
+    (when `icon`/`badge` weren't passed) left a blank line inside a
+    multi-line `st.markdown(f\"\"\"...\"\"\")` call. That blank line broke
+    CommonMark's raw-HTML-block detection (which only auto-continues
+    across blank lines when every line starts with a recognized
+    block-level tag) — the very next line started with `<span>`, an
+    inline tag, so parsing fell through to indented-code-block
+    detection instead (triggered by the heavy indentation the
+    multi-line f-string inherited from Python's own source
+    indentation), and the tags rendered as literal escaped text instead
+    of real HTML. Building it as one line, the same way
+    components/cards.py's safety_note() already does successfully,
+    removes every blank line regardless of which optional fields are
+    empty, so this can't happen for any combination of icon/badge/
+    description being present or None."""
     icon_html = f"<span style='font-size:22px;'>{icon}</span>" if icon else ""
     badge_html = (
         f"<span style='background:{COLORS['soft_teal']}22;color:{COLORS['soft_teal']};"
@@ -77,16 +105,18 @@ def _render_title_block(
         f"margin-left:8px;vertical-align:middle;'>{badge}</span>"
         if badge else ""
     )
-    st.markdown(
-        f"""
-        <div style="margin-bottom:4px;">
-            <div style="display:flex;align-items:center;gap:8px;">
-                {icon_html}
-                <span class="sahay-display" style="font-size:22px;font-weight:700;">{title}</span>
-                {badge_html}
-            </div>
-            {f'<p style="color:{muted};margin:4px 0 0 0;font-size:14.5px;">{description}</p>' if description else ''}
-        </div>
-        """,
-        unsafe_allow_html=True,
+    description_html = (
+        f'<p style="color:{muted};margin:4px 0 0 0;font-size:14.5px;">{description}</p>'
+        if description else ""
     )
+    html = (
+        '<div style="margin-bottom:4px;">'
+        '<div style="display:flex;align-items:center;gap:8px;">'
+        f"{icon_html}"
+        f'<span class="sahay-display" style="font-size:22px;font-weight:700;">{title}</span>'
+        f"{badge_html}"
+        "</div>"
+        f"{description_html}"
+        "</div>"
+    )
+    st.markdown(html, unsafe_allow_html=True)
