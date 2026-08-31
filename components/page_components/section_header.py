@@ -14,6 +14,13 @@ Deliberately tiny — per the Phase 6B instructions ("keep it lightweight
 ... do not make it a giant component"). No icon/badge/action support;
 that's what page_header.py is for at the page level. If a sub-section
 ever needs those, use page_header.py again rather than growing this one.
+
+PHASE (HTML-rendering bug fix, approved): same fix as
+page_header.py — the HTML is now built as one continuous string
+instead of a multi-line indented f-string, so an unset `description`
+(most calls) can no longer leave a blank line that breaks Streamlit's
+raw-HTML-block detection and makes the tags render as visible literal
+text. Same tags/classes/content as before.
 """
 
 from __future__ import annotations
@@ -34,12 +41,14 @@ def render_section_header(title: str, description: str | None = None) -> None:
     dark = st.session_state.get("sahay_dark_mode", False)
     muted = COLORS["muted_dark"] if dark else COLORS["muted_light"]
 
-    st.markdown(
-        f"""
-        <div style="margin:14px 0 4px 0;">
-            <div style="font-weight:700;font-size:15px;">{title}</div>
-            {f'<div style="color:{muted};font-size:13px;margin-top:2px;">{description}</div>' if description else ''}
-        </div>
-        """,
-        unsafe_allow_html=True,
+    description_html = (
+        f'<div style="color:{muted};font-size:13px;margin-top:2px;">{description}</div>'
+        if description else ""
     )
+    html = (
+        '<div style="margin:14px 0 4px 0;">'
+        f'<div style="font-weight:700;font-size:15px;">{title}</div>'
+        f"{description_html}"
+        "</div>"
+    )
+    st.markdown(html, unsafe_allow_html=True)
